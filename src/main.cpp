@@ -100,7 +100,7 @@ int main(void) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on MacOS
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    std::vector<Particle> particles = InitialConditions::createGalaxy(10000, 1.0f, 1000.0f);
+    std::vector<Particle> particles = InitialConditions::createTwoGalaxies(10000, 1.0f, 5000.0f);
 
     std::vector<ParticleVertex> gpuData(particles.size());
     for(size_t i = 0; i < particles.size(); i++) {
