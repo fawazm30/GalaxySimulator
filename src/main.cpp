@@ -82,7 +82,7 @@ int main(void) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on MacOS
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    std::vector<Particle> particles = InitialConditions::createGalaxy(15000, 1.0f, 100.0f);
+    std::vector<Particle> particles = InitialConditions::createGalaxy(10000, 1.0f, 100.0f);
 
     std::vector<glm::vec3> positions;
     for(auto& p : particles) {
