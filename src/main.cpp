@@ -4,6 +4,7 @@
 #include <iostream>
 #include <glm/vec3.hpp>
 #include <vector>
+#include "core/Particle.hpp"
 
 // Vertex shader source code
 const char* vertexShaderSource = "#version 410 core\n"
@@ -49,17 +50,27 @@ int main(void) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on MacOS
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    std::vector<glm::vec3> points;
-    points.reserve(1000); // Optional: Pre-allocate memory for efficiency
+    std::vector<Particle> particles;
+    particles.reserve(1000); // Optional: Pre-allocate memory for efficiency
 
     for(unsigned int i = 0; i < 1000; i++) {
-    // Generate a value between -1.0 and 1.0
-    float x = ((rand() % 2000) / 1000.0f) - 1.0f;
-    float y = ((rand() % 2000) / 1000.0f) - 1.0f;
-    float z = ((rand() % 2000) / 1000.0f) - 1.0f;
+        // Random position
+        float x = ((rand() % 2000) / 1000.0f) - 1.0f;
+        float y = ((rand() % 2000) / 1000.0f) - 1.0f;
+        float z = ((rand() % 2000) / 1000.0f) - 1.0f;
 
-    points.push_back(glm::vec3(x, y, z));
-}
+        // Random velocity (small range)
+        float vx = ((rand() % 200) / 1000.0f) - 0.1f;
+        float vy = ((rand() % 200) / 1000.0f) - 0.1f;
+        float vz = ((rand() % 200) / 1000.0f) - 0.1f;
+
+        particles.push_back(Particle(glm::vec3(x, y, z), glm::vec3(vx, vy, vz), 1.0f));
+    }
+
+    std::vector<glm::vec3> positions;
+    for(auto& p : particles) {
+        positions.push_back(p.position);
+    }
 
     GLFWwindow* window = glfwCreateWindow(640, 480, "Galaxy Simulator", NULL, NULL);
     if (!window)
@@ -81,9 +92,9 @@ int main(void) {
     glGenBuffers(1, &VBO);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(glm::vec3), points.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(glm::vec3), positions.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -115,7 +126,7 @@ int main(void) {
 
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
-        glDrawArrays(GL_POINTS, 0, points.size());  
+        glDrawArrays(GL_POINTS, 0, positions.size());  
 
         glfwSwapBuffers(window);
         glfwPollEvents();
