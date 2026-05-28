@@ -5,6 +5,7 @@
 #include <glm/vec3.hpp>
 #include <vector>
 #include "core/Particle.hpp"
+#include "physics/Gravity.hpp"
 
 // Vertex shader source code
 const char* vertexShaderSource = "#version 410 core\n"
@@ -121,13 +122,36 @@ int main(void) {
  
     while (!glfwWindowShouldClose(window))
     {
+        // reset accelerations to zero before applying gravity
+        for(auto& p : particles) {
+            p.acceleration = glm::vec3(0.0f);
+        }
+        // Apply gravity between all pairs of particles
+        for(size_t i = 0; i < particles.size(); i++) {
+            for(size_t j = i + 1; j < particles.size(); j++) {
+                Gravity::applyGravity(particles[i], particles[j]);
+            }
+        }
+        // Update velocities and positions based on acceleration
+        for(auto& p : particles) {
+            float dt = 0.001f; // Time step
+            p.velocity += p.acceleration * dt; // Update velocity based on acceleration
+            p.position += p.velocity * dt; // Update position based on velocity
+        }
+        // Reupload updated positions to the GPU
+        for(size_t i = 0; i < particles.size(); i++) {
+            positions[i] = particles[i].position;
+        }
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(glm::vec3), positions.data());
+        // Clear the screen and draw the particles
         glClearColor(0.02f, 0.02f, 0.05f, 1.0f); // dark blue-black
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
         glDrawArrays(GL_POINTS, 0, positions.size());  
-
+        // Swap buffers and poll for events
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
