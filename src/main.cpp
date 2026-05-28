@@ -43,6 +43,17 @@ const char* fragmentShaderSource = "#version 410 core\n"
     "    FragColor = vec4(color, alpha * 0.9);\n" // apply alpha and a slight overall dimming for better blending
     "}\n";
 
+struct ParticleVertex {
+    glm::vec3 position;
+    float speed;
+};
+
+
+std::vector<Particle> particles;
+std::vector<ParticleVertex> gpuData;
+bool twoGalaxyMode = true;
+bool shouldReset = false;
+
 // Error callback function for GLFW
 static void error_callback(int error, const char* description)
 {
@@ -54,6 +65,10 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+        twoGalaxyMode = !twoGalaxyMode;
+        shouldReset = true;
+    }
 }
 
 Camera camera;
@@ -80,11 +95,6 @@ void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
     camera.zoom((float)yoffset * -0.5f);
 }
 
-struct ParticleVertex {
-    glm::vec3 position;
-    float speed;
-};
-
 int main(void) {
     // Set the error callback before initializing GLFW to catch any initialization errors
     glfwSetErrorCallback(error_callback);
@@ -100,9 +110,10 @@ int main(void) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on MacOS
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    std::vector<Particle> particles = InitialConditions::createTwoGalaxies(10000, 1.0f, 5000.0f);
+    particles = InitialConditions::createTwoGalaxies(20000, 1.0f, 5000.0f);
 
-    std::vector<ParticleVertex> gpuData(particles.size());
+
+    gpuData.resize(particles.size());
     for(size_t i = 0; i < particles.size(); i++) {
         gpuData[i].position = particles[i].position;
         gpuData[i].speed = glm::length(particles[i].velocity);
@@ -164,8 +175,21 @@ int main(void) {
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
  
+    // render loop
     while (!glfwWindowShouldClose(window))
     {
+        if (shouldReset) {
+        if (twoGalaxyMode)
+            particles = InitialConditions::createTwoGalaxies(10000, 1.0f, 1000.0f);
+        else
+            particles = InitialConditions::createGalaxy(10000, 1.0f, 1000.0f);
+        
+            gpuData.resize(particles.size());
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glBufferData(GL_ARRAY_BUFFER, gpuData.size() * sizeof(ParticleVertex), gpuData.data(), GL_DYNAMIC_DRAW);
+            shouldReset = false;
+        }
+        
         //------Leapfrog Integration------//
 
         float dt = 0.01f; // Time step for the simulation
@@ -245,4 +269,3 @@ int main(void) {
     glfwTerminate();
     exit(EXIT_SUCCESS);
 }
-
