@@ -2,7 +2,6 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include "Particle.hpp"
-#include "core/OctTree.hpp"
 
 struct OctNode {
     glm::vec3 center;      // center of this cube
