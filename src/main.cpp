@@ -9,6 +9,7 @@
 #include "core/InitialConditions.hpp"
 #include "renderer/Camera.hpp"
 #include <glm/gtc/type_ptr.hpp>
+#include "core/OctTree.hpp"
 
 // Vertex shader source code
 const char* vertexShaderSource = "#version 410 core\n"
@@ -81,7 +82,7 @@ int main(void) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on MacOS
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    std::vector<Particle> particles = InitialConditions::createGalaxy(1000, 1.0f, 100.0f);
+    std::vector<Particle> particles = InitialConditions::createGalaxy(15000, 1.0f, 100.0f);
 
     std::vector<glm::vec3> positions;
     for(auto& p : particles) {
@@ -154,13 +155,18 @@ int main(void) {
             p.position += p.velocity * dt;
         }
 
-        // reset accelerations to zero before recalculating forces
-        for(auto& p : particles) p.acceleration = glm::vec3(0.0f);
-        // recalculate forces with new positions
-        for(size_t i = 0; i < particles.size(); i++) {
-            for(size_t j = i + 1; j < particles.size(); j++) {
-                Gravity::applyGravity(particles[i], particles[j]);
-            }
+        // Build Barnes-Hut octree
+        OctTree tree(glm::vec3(0.0f), 10.0f);
+
+        // Reset accelerations and insert all particles into tree
+        for(auto& p : particles) {
+            p.acceleration = glm::vec3(0.0f);
+            tree.insert(&p);
+        }
+
+        // Compute forces using Barnes-Hut approximation
+        for(auto& p : particles) {
+            tree.computeForces(p, 0.0001f, 0.5f);
         }
 
         // update velocity by another half-time step
