@@ -14,20 +14,33 @@
 // Vertex shader source code
 const char* vertexShaderSource = "#version 410 core\n"
     "layout (location = 0) in vec3 aPos;\n"
+    "layout (location = 1) in float aSpeed;\n"
     "uniform mat4 view;\n"
     "uniform mat4 projection;\n"
+    "out float vSpeed;\n"
     "void main()\n"
     "{\n"
     "    gl_Position = projection * view * vec4(aPos, 1.0);\n"
     "    gl_PointSize = 3.0;\n"
+    "    vSpeed = aSpeed;\n"
     "}\n";
 
 // Fragment shader source code
 const char* fragmentShaderSource = "#version 410 core\n"
+    "in float vSpeed;\n"
     "out vec4 FragColor;\n"
     "void main()\n"
     "{\n"
-    "    FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n" // Set the color of the fragment (white)
+    "    vec2 coord = gl_PointCoord - vec2(0.5);\n"
+    "    float dist = length(coord);\n"
+    "    if (dist > 0.5) discard;\n"
+    "    float alpha = 1.0 - smoothstep(0.0, 0.5, dist);\n"
+    "    float t = clamp(vSpeed * 1.0, 0.0, 1.0);\n"
+    "    vec3 slowColor = vec3(1.0, 0.6, 0.2);\n"   // warm orange
+    "    vec3 midColor  = vec3(1.0, 0.95, 0.8);\n"  // warm white
+    "    vec3 fastColor = vec3(0.6, 0.8, 1.0);\n"   // blue-white
+    "    vec3 color = t < 0.5 ? mix(slowColor, midColor, t * 2.0) : mix(midColor, fastColor, (t - 0.5) * 2.0);\n"
+    "    FragColor = vec4(color, alpha * 0.9);\n" // apply alpha and a slight overall dimming for better blending
     "}\n";
 
 // Error callback function for GLFW
@@ -67,6 +80,11 @@ void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
     camera.zoom((float)yoffset * -0.5f);
 }
 
+struct ParticleVertex {
+    glm::vec3 position;
+    float speed;
+};
+
 int main(void) {
     // Set the error callback before initializing GLFW to catch any initialization errors
     glfwSetErrorCallback(error_callback);
@@ -84,9 +102,10 @@ int main(void) {
 
     std::vector<Particle> particles = InitialConditions::createGalaxy(10000, 1.0f, 1000.0f);
 
-    std::vector<glm::vec3> positions;
-    for(auto& p : particles) {
-        positions.push_back(p.position);
+    std::vector<ParticleVertex> gpuData(particles.size());
+    for(size_t i = 0; i < particles.size(); i++) {
+        gpuData[i].position = particles[i].position;
+        gpuData[i].speed = glm::length(particles[i].velocity);
     }
 
     GLFWwindow* window = glfwCreateWindow(640, 480, "Galaxy Simulator", NULL, NULL);
@@ -104,6 +123,9 @@ int main(void) {
 
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress); // Load OpenGL function pointers using GLAD and GLFW's function loader
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE); // additive blending
     glEnable(GL_PROGRAM_POINT_SIZE); // Enable setting point size in the vertex shader
     glfwSwapInterval(1);
 
@@ -112,10 +134,13 @@ int main(void) {
     glGenBuffers(1, &VBO);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(glm::vec3), positions.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, gpuData.size() * sizeof(ParticleVertex), gpuData.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ParticleVertex), (void*)0);
     glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(ParticleVertex), (void*)(sizeof(glm::vec3)));
+    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -155,6 +180,15 @@ int main(void) {
             p.position += p.velocity * dt;
         }
 
+        // float maxSpeed = 0.0f;
+        // float minSpeed = 999.0f;
+        // for(auto& p : particles) {
+        //     float s = glm::length(p.velocity);
+        //     maxSpeed = std::max(maxSpeed, s);
+        //     minSpeed = std::min(minSpeed, s);
+        // }
+        // std::cout << "Speed range: " << minSpeed << " - " << maxSpeed << "\n";
+
         // Build Barnes-Hut octree
         OctTree tree(glm::vec3(0.0f), 50.0f);
 
@@ -176,10 +210,11 @@ int main(void) {
 
         // Reupload updated positions to the GPU
         for(size_t i = 0; i < particles.size(); i++) {
-            positions[i] = particles[i].position;
+            gpuData[i].position = particles[i].position;
+            gpuData[i].speed = glm::length(particles[i].velocity);
         }
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(glm::vec3), positions.data());
+        glBufferSubData(GL_ARRAY_BUFFER, 0, gpuData.size() * sizeof(ParticleVertex), gpuData.data());
         // Clear the screen and draw the particles
         glClearColor(0.02f, 0.02f, 0.05f, 1.0f); // dark blue-black
         glClear(GL_COLOR_BUFFER_BIT);
@@ -195,7 +230,7 @@ int main(void) {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
         glBindVertexArray(VAO);
-        glDrawArrays(GL_POINTS, 0, positions.size());  
+        glDrawArrays(GL_POINTS, 0, gpuData.size());  
         // Swap buffers and poll for events
         glfwSwapBuffers(window);
         glfwPollEvents();
