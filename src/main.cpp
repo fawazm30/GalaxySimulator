@@ -6,6 +6,7 @@
 #include <vector>
 #include "core/Particle.hpp"
 #include "physics/Gravity.hpp"
+#include "core/InitialConditions.hpp"
 
 // Vertex shader source code
 const char* vertexShaderSource = "#version 410 core\n"
@@ -51,22 +52,7 @@ int main(void) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Required on MacOS
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    std::vector<Particle> particles;
-    particles.reserve(1000); // Optional: Pre-allocate memory for efficiency
-
-    for(unsigned int i = 0; i < 1000; i++) {
-        // Random position
-        float x = ((rand() % 2000) / 1000.0f) - 1.0f;
-        float y = ((rand() % 2000) / 1000.0f) - 1.0f;
-        float z = ((rand() % 2000) / 1000.0f) - 1.0f;
-
-        // Random velocity (small range)
-        float vx = ((rand() % 200) / 1000.0f) - 0.1f;
-        float vy = ((rand() % 200) / 1000.0f) - 0.1f;
-        float vz = ((rand() % 200) / 1000.0f) - 0.1f;
-
-        particles.push_back(Particle(glm::vec3(x, y, z), glm::vec3(vx, vy, vz), 1.0f));
-    }
+    std::vector<Particle> particles = InitialConditions::createGalaxy(1000, 1.0f, 100.0f);
 
     std::vector<glm::vec3> positions;
     for(auto& p : particles) {
