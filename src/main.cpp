@@ -7,13 +7,18 @@
 #include "core/Particle.hpp"
 #include "physics/Gravity.hpp"
 #include "core/InitialConditions.hpp"
+#include "renderer/Camera.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 // Vertex shader source code
 const char* vertexShaderSource = "#version 410 core\n"
     "layout (location = 0) in vec3 aPos;\n"
+    "uniform mat4 view;\n"
+    "uniform mat4 projection;\n"
     "void main()\n"
     "{\n"
-    "    gl_Position = vec4(aPos, 1.0); gl_PointSize = 5.0;\n" // Set the position of the vertex
+    "    gl_Position = projection * view * vec4(aPos, 1.0);\n"
+    "    gl_PointSize = 3.0;\n"
     "}\n";
 
 // Fragment shader source code
@@ -35,6 +40,30 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
+
+Camera camera;
+bool mouseDown = false;
+double lastX = 0.0, lastY = 0.0;
+
+// Mouse button callback to track when the left mouse button is pressed or released
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+        mouseDown = (action == GLFW_PRESS);
+}
+
+// Cursor position callback to handle mouse movement for orbiting the camera around the center of the galaxy
+void cursorCallback(GLFWwindow* window, double x, double y) {
+    if (mouseDown) {
+        camera.orbit((float)(x - lastX) * 0.3f, (float)(y - lastY) * 0.3f);
+    }
+    lastX = x;
+    lastY = y;
+}
+
+/// Scroll callback to handle zooming the camera in and out based on scroll input
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+    camera.zoom((float)yoffset * -0.5f);
 }
 
 int main(void) {
@@ -68,6 +97,9 @@ int main(void) {
     }
 
     glfwSetKeyCallback(window, key_callback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    glfwSetCursorPosCallback(window, cursorCallback);
+    glfwSetScrollCallback(window, scrollCallback);
 
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress); // Load OpenGL function pointers using GLAD and GLFW's function loader
@@ -147,6 +179,15 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shaderProgram);
+
+        // Get the framebuffer size to calculate the aspect ratio for the projection matrix
+        int w, h;
+        glfwGetFramebufferSize(window, &w, &h);
+        glm::mat4 view = camera.getView();
+        glm::mat4 projection = camera.getProjection((float)w / h);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
         glBindVertexArray(VAO);
         glDrawArrays(GL_POINTS, 0, positions.size());  
         // Swap buffers and poll for events
