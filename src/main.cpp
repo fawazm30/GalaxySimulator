@@ -122,22 +122,34 @@ int main(void) {
  
     while (!glfwWindowShouldClose(window))
     {
-        // reset accelerations to zero before applying gravity
+        //------Leapfrog Integration------//
+
+        float dt = 0.01f; // Time step for the simulation
+
+        // update velocitity by half-time step
         for(auto& p : particles) {
-            p.acceleration = glm::vec3(0.0f);
+            p.velocity += p.acceleration * (dt * 0.5f);
         }
-        // Apply gravity between all pairs of particles
+
+        // update position by full time step
+        for(auto& p : particles) {
+            p.position += p.velocity * dt;
+        }
+
+        // reset accelerations to zero before recalculating forces
+        for(auto& p : particles) p.acceleration = glm::vec3(0.0f);
+        // recalculate forces with new positions
         for(size_t i = 0; i < particles.size(); i++) {
             for(size_t j = i + 1; j < particles.size(); j++) {
                 Gravity::applyGravity(particles[i], particles[j]);
             }
         }
-        // Update velocities and positions based on acceleration
+
+        // update velocity by another half-time step
         for(auto& p : particles) {
-            float dt = 0.001f; // Time step
-            p.velocity += p.acceleration * dt; // Update velocity based on acceleration
-            p.position += p.velocity * dt; // Update position based on velocity
+            p.velocity += p.acceleration * (dt * 0.5f);
         }
+
         // Reupload updated positions to the GPU
         for(size_t i = 0; i < particles.size(); i++) {
             positions[i] = particles[i].position;
