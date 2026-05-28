@@ -17,7 +17,7 @@ std::vector<Particle> InitialConditions::createGalaxy(int numParticles, float ra
 
     for(int i = 1; i < numParticles; i++) {
         float angle = ((float)rand() / (float)RAND_MAX) * 2.0f * 3.14159265f; // Random angle around the center
-        float r = ((float)rand() / (float)RAND_MAX) * radius; // Random radius within the specified limit
+        float r = 0.1f + ((float)rand() / (float)RAND_MAX) * radius; // Random radius within the specified limit
 
         // Position in a disk-like distribution
         float x = r * cos(angle);
