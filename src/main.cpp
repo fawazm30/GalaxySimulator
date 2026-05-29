@@ -182,9 +182,9 @@ int main(void) {
     {
         if (shouldReset) {
         if (twoGalaxyMode)
-            particles = InitialConditions::createTwoGalaxies(10000, 1.0f, 1000.0f);
+            particles = InitialConditions::createTwoGalaxies(15000, 1.0f, 1000.0f);
         else
-            particles = InitialConditions::createGalaxy(10000, 1.0f, 1000.0f);
+            particles = InitialConditions::createGalaxy(15000, 1.0f, 1000.0f);
         
             gpuData.resize(particles.size());
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
