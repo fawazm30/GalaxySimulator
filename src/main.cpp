@@ -43,6 +43,7 @@ const char* fragmentShaderSource = "#version 410 core\n"
     "    FragColor = vec4(color, alpha * 0.9);\n" // apply alpha and a slight overall dimming for better blending
     "}\n";
 
+// Struct to hold particle data for sending to the GPU
 struct ParticleVertex {
     glm::vec3 position;
     float speed;
@@ -95,6 +96,7 @@ void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
     camera.zoom((float)yoffset * -0.5f);
 }
 
+// Main function to set up the window, OpenGL context, and run the simulation loop
 int main(void) {
     // Set the error callback before initializing GLFW to catch any initialization errors
     glfwSetErrorCallback(error_callback);
@@ -253,6 +255,7 @@ int main(void) {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
+        // Bind the VAO and draw the particles as points
         glBindVertexArray(VAO);
         glDrawArrays(GL_POINTS, 0, gpuData.size());  
         // Swap buffers and poll for events
@@ -260,6 +263,7 @@ int main(void) {
         glfwPollEvents();
     }
 
+    // clean up and exit
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteProgram(shaderProgram);
